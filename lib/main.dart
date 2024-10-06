@@ -96,7 +96,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
 
           // Restart listening as quickly as possible after stopping
           if (shouldRestartListening) {
-            Future.delayed(Duration(milliseconds: 200), () {
+            Future.delayed(Duration(milliseconds: 300), () {
               if (!_isListening && shouldRestartListening) {
                 _log.info('Restarting speech recognition for continuous translation.');
                 _restartListening();
@@ -109,7 +109,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         _log.severe('Speech Recognition Error: $error');
         // Restart listening immediately after an error
         if (shouldRestartListening) {
-          Future.delayed(Duration(milliseconds: 200), () {
+          Future.delayed(Duration(milliseconds: 300), () {
             _restartListening();
           });
         }
@@ -125,33 +125,36 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
     }
   }
 
-  void _startListening() async {
-    if (_isAvailable && !_isListening) {
-      _translatedText = '';
-      setState(() {});
+void _startListening() async {
+  if (_isAvailable && !_isListening) {
+    _translatedText = '';
+    setState(() {});
 
-      try {
-        await _speechToText.listen(
-          onResult: (result) {
-            if (result.finalResult) {
-              _log.info('Finales Ergebnis erreicht: ${result.recognizedWords}');
-              _translateAndSendTextToFrame(result.recognizedWords);
-            } else {
-              _log.info('Partielles Ergebnis: ${result.recognizedWords}');
-            }
-          },
-          localeId: _selectedInputLanguage,
-          listenFor: Duration(minutes: 5),  // Längeres Timeout für kontinuierliches Zuhören
-          pauseFor: Duration(seconds: 20),  // Längere Pausen erlauben
-          partialResults: true,             // Zwischenresultate aktivieren
-        );
-        _isListening = true;
-        setState(() {});
-      } catch (e) {
-        _log.severe('Error starting speech recognition: $e');
-      }
+    try {
+      await _speechToText.listen(
+        onResult: (result) {
+          _log.info(result.finalResult 
+            ? 'Finales Ergebnis erreicht: ${result.recognizedWords}'
+            : 'Partielles Ergebnis: ${result.recognizedWords}');
+
+          // Partielle und finale Ergebnisse sofort übersetzen und anzeigen
+          _translateAndSendPartialText(result.recognizedWords, result.finalResult);
+        },
+        localeId: _selectedInputLanguage,
+        listenFor: Duration(minutes: 5),  // Längeres Timeout für kontinuierliches Zuhören
+        pauseFor: Duration(seconds: 20),  // Längere Pausen erlauben
+        partialResults: true,             // Zwischenresultate aktivieren
+      );
+      _isListening = true;
+      setState(() {});
+    } catch (e) {
+      _log.severe('Error starting speech recognition: $e');
     }
   }
+}
+
+
+
 
   void _stopListening() async {
     if (_isListening) {
@@ -188,77 +191,113 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
 
   bool _isSending = false;
 
-  void _translateAndSendTextToFrame(String text) async {
-    if (text.isNotEmpty && !_isSending) {
-      _isSending = true;
-      try {
-        await Future.delayed(Duration(milliseconds: 500));
 
-        String translatedText = await translateText(
-            text, _selectedInputLanguage, _selectedTargetLanguage);
 
-        _log.info('Übersetzung erfolgreich: $translatedText');
+void _translateAndSendPartialText(String partialText, bool isFinal) async {
+  if (partialText.isNotEmpty && !_isSending) {
+    _isSending = true;
+    try {
+      String translatedChunk = await translateText(partialText, _selectedInputLanguage, _selectedTargetLanguage);
 
-        if (translatedText.isEmpty) {
-          _log.severe('Die Übersetzung ist leer.');
-          _isSending = false;
-          return;
-        }
+      if (translatedChunk.isEmpty) {
+        _log.severe('Die partielle Übersetzung ist leer.');
+        return;
+      }
 
-        _log.info('Sende den übersetzten Text an das Frame-Display.');
+      // Zeige die partielle Übersetzung sofort an, wenn es kein finales Ergebnis ist
+      if (!isFinal) {
+        await _sendTextToFrame(translatedChunk);
+        setState(() {
+          _translatedText = translatedChunk;  // Der Text wird auch in der App aktualisiert
+        });
+      }
 
-        await _sendTextToFrame(translatedText);
+      // Finales Ergebnis gesondert behandeln und sicherstellen, dass es das letzte gesendete ist
+      if (isFinal) {
+        _log.info('Finales Ergebnis erreicht: $translatedChunk');
+        
+        // Verzögerung einfügen, um sicherzustellen, dass der finale Text nicht überschrieben wird
+        await Future.delayed(Duration(milliseconds: 100));
+
+        // Sende den finalen Text und blockiere danach weitere Sendungen
+        await _sendTextToFrame(translatedChunk);
 
         setState(() {
-          _translatedText = translatedText;
+          _translatedText = translatedChunk;  // Der finale Text wird in der App und auf dem Frame angezeigt
         });
-      } catch (e) {
-        _log.severe('Fehler beim Senden des übersetzten Textes an das Frame: $e');
-      } finally {
-        _isSending = false;
+
+        // Blockiere das erneute Senden weiterer partieller Texte
+        _isSending = false;  
+        return;  // Beende die Funktion nach dem Senden des finalen Textes
       }
+
+    } catch (e) {
+      _log.severe('Fehler beim Senden des Textes an das Frame: $e');
+    } finally {
+      _isSending = false;
     }
   }
+}
 
-  Future<void> _sendTextToFrame(String text) async {
-    if (text.isNotEmpty) {
-      try {
-        var tsb = TxTextSpriteBlock(
-          msgCode: 0x20,
-          width: 640,
-          fontSize: 40,
-          displayRows: 4,
-          fontFamily: null,
-          text: text,
-        );
 
-        await tsb.rasterize();
-        _log.info('TxTextSpriteBlock vorbereitet.');
 
-        final pngBytes = await tsb.toPngBytes();
-        _log.info('TxTextSpriteBlock PNG Bytes length: ${pngBytes.length} bytes');
 
-        await frame!.sendMessage(tsb);
-        _log.info('TxTextSpriteBlock gesendet');
 
-        for (var line in tsb.lines) {
-          await frame!.sendMessage(line);
-          _log.info('TextSpriteLine gesendet: Zeile');
-          await Future.delayed(Duration(milliseconds: 20));
-        }
 
-        currentState = ApplicationState.ready;
-        if (mounted) setState(() {});
-      } catch (e) {
-        _log.severe('Fehler beim Senden des Textes an das Frame: $e');
+
+
+
+
+
+
+Future<void> _sendTextToFrame(String text) async {
+  if (text.isNotEmpty) {
+    try {
+      var tsb = TxTextSpriteBlock(
+        msgCode: 0x20,
+        width: 640,
+        fontSize: 40,
+        displayRows: 4, // Ein Block mit 4 Zeilen
+        fontFamily: null,
+        text: text,
+      );
+
+      // Asynchrones Rasterizing des Sprite-Blocks
+      _log.info('Rasterizing TxTextSpriteBlock...');
+      await tsb.rasterize();
+
+      // Hole die PNG-Bytes und warte auf das Ergebnis
+      final pngBytes = await tsb.toPngBytes();
+      _log.info('TxTextSpriteBlock vorbereitet, PNG Bytes length: ${pngBytes.length} bytes');
+
+      // Sende den gesamten Sprite-Block für bessere Effizienz
+      await frame!.sendMessage(tsb);
+      _log.info('TxTextSpriteBlock gesendet.');
+
+      // Sende jede Zeile des TextSpriteBlocks mit minimaler Verzögerung
+      for (var line in tsb.lines) {
+        await frame!.sendMessage(line);
+        _log.info('TextSpriteLine gesendet: Zeile');
+        await Future.delayed(Duration(milliseconds: 5));  // Minimale Verzögerung
       }
+
+      currentState = ApplicationState.ready;
+      if (mounted) setState(() {});
+    } catch (e) {
+      _log.severe('Fehler beim Senden des Textes an das Frame: $e');
     }
   }
+}
+
+
+
+
+
 
   Future<String> translateText(
       String text, String sourceLang, String targetLang) async {
     try {
-      var url = Uri.parse('LINK.TO.LIBRETRANSLATE/translate');
+      var url = Uri.parse('LIBRETRANSLATE-PAGE/translate');
       var response = await http.post(url,
           headers: {
             'Content-Type': 'application/json',
@@ -268,8 +307,8 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
             'source': sourceLang,
             'target': targetLang,
             'format': 'text',
-            'api_key': 'LIBRETRANSLATE-API-KEY',
-            
+            'api_key': 'API-KEY',
+
           }));
 
       if (response.statusCode == 200) {
