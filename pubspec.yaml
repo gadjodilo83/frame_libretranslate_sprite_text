@@ -1,4 +1,4 @@
-name: frame_gemini_chat_text
+name: frame_spritetransl_text
 description: "Speak to a Gemini AI model by voice using platform-provided speech-to-text, and show response text in any language on the Brilliant Labs Frame display"
 publish_to: 'none'
 version: 0.1.0
@@ -9,15 +9,21 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  web_socket_channel: ^2.1.0
+  convert: ^3.0.0
+
   flutter_blue_plus: ^1.32.12
   flutter_chat_types: ^3.6.2
   flutter_chat_ui: ^1.6.15
   google_generative_ai: ^0.4.6
   image: ^4.2.0
   logging: ^1.2.0
+  connectivity_plus: ^2.3.5
+
   shared_preferences: ^2.3.2
   simple_frame_app:
-    path: ../simple_frame_app
+    git: https://github.com/CitizenOneX/simple_frame_app.git
+
   speech_to_text: ^7.0.0
   uuid: ^4.5.0
 
