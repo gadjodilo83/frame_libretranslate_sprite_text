@@ -268,6 +268,8 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
             'source': sourceLang,
             'target': targetLang,
             'format': 'text',
+            'api_key': 'LIBRETRANSLATE-API-KEY',
+            
           }));
 
       if (response.statusCode == 200) {
