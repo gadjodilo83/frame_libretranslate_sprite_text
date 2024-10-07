@@ -30,7 +30,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
   String _selectedInputLanguage = 'de';
   String _selectedTargetLanguage = 'ja';
 
-  final List<String> _languages = ['ja', 'en', 'de', 'it', 'fr', 'es', 'ar', 'zh', 'el', 'ko', 'tr', 'auto'];
+  final List<String> _languages = ['ja', 'en', 'de', 'it', 'fr', 'es', 'ar', 'zh', 'el', 'ko', 'tr', 'da', 'et', 'fi', 'nb', 'pl', 'sv', 'auto'];
   final ScrollController _scrollController = ScrollController();
   final ScrollController _logScrollController = ScrollController(); // Controller for log auto-scrolling
 
