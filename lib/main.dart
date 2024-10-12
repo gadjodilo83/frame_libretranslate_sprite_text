@@ -290,14 +290,10 @@ Future<void> _sendTextToFrame(String text) async {
 }
 
 
-
-
-
-
   Future<String> translateText(
       String text, String sourceLang, String targetLang) async {
     try {
-      var url = Uri.parse('LIBRETRANSLATE-PAGE/translate');
+      var url = Uri.parse('URL-TO-LBRETRANSLATE/translate');
       var response = await http.post(url,
           headers: {
             'Content-Type': 'application/json',
@@ -307,7 +303,7 @@ Future<void> _sendTextToFrame(String text) async {
             'source': sourceLang,
             'target': targetLang,
             'format': 'text',
-            'api_key': 'API-KEY',
+            'api_key': 'API-KEY-LBRETRANSLATE', // Falls ein API-Schlüssel benötigt wird
 
           }));
 
