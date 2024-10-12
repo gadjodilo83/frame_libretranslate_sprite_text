@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  web_socket_channel: ^2.1.0
+  web_socket_channel: ^3.0.1
   convert: ^3.0.0
 
   flutter_blue_plus: ^1.32.12
@@ -17,11 +17,12 @@ dependencies:
   flutter_chat_ui: ^1.6.15
   image: ^4.2.0
   logging: ^1.2.0
-  connectivity_plus: ^2.3.5
+  connectivity_plus: ^6.0.5
+
 
   shared_preferences: ^2.3.2
-  simple_frame_app:
-    git: https://github.com/CitizenOneX/simple_frame_app.git
+  simple_frame_app: ^0.0.8
+
 
   speech_to_text: ^7.0.0
   uuid: ^4.5.0
@@ -29,7 +30,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^5.0.0
 
 flutter:
   uses-material-design: true
