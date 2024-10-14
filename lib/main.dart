@@ -218,82 +218,90 @@ final Map<String, String> _languagesMap = {
   bool _isSending = false;
   String _lastSentText = '';  // Um den letzten gesendeten Text zu speichern
 
-  void _translateAndSendPartialText(String partialText) async {
-    // Sende nichts, wenn der Text leer ist
-    if (partialText.isEmpty) {
-      return;
-    }
 
-    // Wenn der Text sich von dem zuletzt gesendeten unterscheidet, verarbeite ihn
-    if (partialText != _lastSentText && !_isSending) {
-      _isSending = true;
-      try {
-        String translatedChunk = await translateText(partialText, _selectedInputLanguage, _selectedTargetLanguage);
 
-        if (translatedChunk.isEmpty) {
-          _log.severe('Die partielle Übersetzung ist leer.');
-          return;
-        }
 
-        // Partielle Ergebnisse sofort senden
+void _translateAndSendPartialText(String partialText) async {
+  // Sende nichts, wenn der Text leer ist
+  if (partialText.isEmpty) {
+    return;
+  }
+
+  // Verarbeite den Text auch dann, wenn er das finale Ergebnis ist
+  if (!_isSending && (partialText != _lastSentText || _speechToText.isNotListening)) {
+    _isSending = true;
+    try {
+      // Asynchron übersetzen und sofort nach Abschluss senden
+      String translatedChunk = await translateText(partialText, _selectedInputLanguage, _selectedTargetLanguage);
+
+      if (translatedChunk.isNotEmpty) {
+        // Übersetzung sofort ans Frame senden
         await _sendTextToFrame(translatedChunk);
+
+        // UI aktualisieren
         setState(() {
           _translatedText = translatedChunk;
         });
-        _lastSentText = partialText;
 
-      } catch (e) {
-        _log.severe('Fehler beim Senden des Textes an das Frame: $e');
-      } finally {
-        _isSending = false;
-      }
-    }
-  }
-
-  Future<void> _sendTextToFrame(String text) async {
-    if (text.isNotEmpty) {
-      try {
-        var tsb = TxTextSpriteBlock(
-          msgCode: 0x20,
-          width: 640,  // Breite des Textblocks, evtl. verringern falls nötig
-          fontSize: 40,  // Verringere die Schriftgröße, falls der Text zu lang ist
-          displayRows: 4,  // Anzahl der Zeilen im Block
-          fontFamily: null,
-          text: text,
-        );
-
-        _log.info('Rasterizing TxTextSpriteBlock...');
-        await tsb.rasterize();
-
-        final pngBytes = await tsb.toPngBytes();
-        _log.info('TxTextSpriteBlock vorbereitet, PNG Bytes length: ${pngBytes.length} bytes');
-
-        // Füge eine Verzögerung ein, um sicherzustellen, dass das Frame Zeit hat, die Nachricht zu verarbeiten
-        await Future.delayed(Duration(milliseconds: 200));
-
-        // Sende den gesamten Sprite-Block
-        await frame!.sendMessage(tsb);
-        _log.info('TxTextSpriteBlock gesendet.');
-
-        // Sende jede Zeile des TextSpriteBlocks mit minimaler Verzögerung
-        for (var line in tsb.lines) {
-          await frame!.sendMessage(line);
-          _log.info('TextSpriteLine gesendet: Zeile');
-          await Future.delayed(Duration(milliseconds: 100));  // Minimale Verzögerung zwischen den Zeilen
+        // Letzten gesendeten Text speichern, um Wiederholungen zu vermeiden, nur wenn es sich nicht um das finale Ergebnis handelt
+        if (!_speechToText.isNotListening) {
+          _lastSentText = partialText;
         }
-
-        currentState = ApplicationState.ready;
-        if (mounted) setState(() {});
-      } catch (e) {
-        _log.severe('Fehler beim Senden des Textes an das Frame: $e');
       }
+
+    } catch (e) {
+      _log.severe('Fehler beim Senden des Textes an das Frame: $e');
+    } finally {
+      _isSending = false;
     }
   }
+}
+
+Future<void> _sendTextToFrame(String text) async {
+  if (text.isNotEmpty) {
+    try {
+      var tsb = TxTextSpriteBlock(
+        msgCode: 0x20,
+        width: 640,
+        fontSize: 40,
+        displayRows: 3,
+        fontFamily: null,
+        text: text,
+      );
+
+      _log.info('Rasterizing TxTextSpriteBlock...');
+      await tsb.rasterize();
+
+      // Sende den gesamten Sprite-Block an das Frame
+      await frame!.sendMessage(tsb);
+      _log.info('TxTextSpriteBlock gesendet.');
+
+      // Sende jede Zeile des TextSpriteBlocks ohne Verzögerung
+      for (var line in tsb.lines) {
+        await frame!.sendMessage(line);
+        _log.info('TextSpriteLine gesendet: Zeile');
+      }
+
+      // Aktualisiere den Zustand auf "ready", um sicherzustellen, dass das Frame für die nächste Nachricht bereit ist
+      currentState = ApplicationState.ready;
+      if (mounted) setState(() {});
+
+    } catch (e) {
+      _log.severe('Fehler beim Senden des Textes an das Frame: $e');
+    }
+  }
+}
+
+
+
+
+
+
 
   Future<String> translateText(
       String text, String sourceLang, String targetLang) async {
     try {
-      var url = Uri.parse('https://URL-TO-LIBRETRANSLATE/translate');
+      var url = Uri.parse('https://LIBRETRANSLATE-URL/translate');
       var response = await http.post(url,
           headers: {
             'Content-Type': 'application/json',
@@ -303,7 +311,7 @@ final Map<String, String> _languagesMap = {
             'source': sourceLang,
             'target': targetLang,
             'format': 'text',
-            'api_key': 'API-KEY-LIBRETRANSLATE', // Falls ein API-Schlüssel benötigt wird
+            'api_key': 'LIBRETRANSLATE-API-KEX', // Falls ein API-Schlüssel benötigt wird
 
           }));
 
