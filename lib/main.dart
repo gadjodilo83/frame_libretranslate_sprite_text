@@ -30,7 +30,37 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
   String _selectedInputLanguage = 'de';
   String _selectedTargetLanguage = 'ja';
 
-  final List<String> _languages = ['ja', 'en', 'de', 'it', 'fr', 'es', 'ar', 'zh', 'zt', 'el', 'ko', 'tr', 'da', 'et', 'fi', 'nb', 'pl', 'sv', 'fa', 'uk', 'hi', 'cs', 'sq'];
+
+// Map for languages with abbreviations as keys and full names in English as values
+final Map<String, String> _languagesMap = {
+  'ar': 'Arabic',
+  'cs': 'Czech',
+  'da': 'Danish',
+  'de': 'German',
+  'el': 'Greek',
+  'en': 'English',
+  'es': 'Spanish',
+  'et': 'Estonian',
+  'fa': 'Persian',
+  'fi': 'Finnish',
+  'fr': 'French',
+  'hi': 'Hindi',
+  'it': 'Italian',
+  'ja': 'Japanese',
+  'ko': 'Korean',
+  'nb': 'Norwegian',
+  'pl': 'Polish',
+  'sq': 'Albanian',
+  'sv': 'Swedish',
+  'tr': 'Turkish',
+  'uk': 'Ukrainian',
+  'zh': 'Chinese (Simplified)',
+  'zt': 'Chinese (Traditional)',
+};
+
+
+
+
   final ScrollController _scrollController = ScrollController();
   final ScrollController _logScrollController = ScrollController(); // Controller for log auto-scrolling
 
@@ -118,6 +148,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
     currentState = ApplicationState.disconnected;
     if (mounted) setState(() {});
   }
+
 
   void _restartListening() async {
     if (!_isListening && _isAvailable && shouldRestartListening) {
@@ -264,7 +295,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
   Future<String> translateText(
       String text, String sourceLang, String targetLang) async {
     try {
-      var url = Uri.parse('LINK-TO-LIBRETRANSLATE/translate');
+      var url = Uri.parse('https://URL-TO-LIBRETRANSLATE/translate');
       var response = await http.post(url,
           headers: {
             'Content-Type': 'application/json',
@@ -274,7 +305,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
             'source': sourceLang,
             'target': targetLang,
             'format': 'text',
-            'api_key': 'API-LIBRETRANSLATE', // Falls ein API-Schlüssel benötigt wird
+            'api_key': 'API-KEY-LIBRETRANSLATE', // Falls ein API-Schlüssel benötigt wird
 
           }));
 
@@ -294,6 +325,10 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
 
   @override
   Widget build(BuildContext context) {
+    // Sortiere die Sprachen alphabetisch nach den ausgeschriebenen Namen
+    var sortedLanguages = _languagesMap.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+
     return MaterialApp(
       title: 'Frame Sprite Translator',
       theme: ThemeData.dark(),
@@ -328,12 +363,12 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
                     children: [
                       DropdownButton<String>(
                         value: _selectedInputLanguage,
-                        items: _languages
-                            .map((lang) => DropdownMenuItem<String>(
-                                  value: lang,
-                                  child: Text(lang.toUpperCase()),
-                                ))
-                            .toList(),
+                        items: sortedLanguages.map((lang) {
+                          return DropdownMenuItem<String>(
+                            value: lang.key,
+                            child: Text(lang.value),
+                          );
+                        }).toList(),
                         onChanged: (value) {
                           setState(() {
                             _selectedInputLanguage = value!;
@@ -343,12 +378,12 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
                       ),
                       DropdownButton<String>(
                         value: _selectedTargetLanguage,
-                        items: _languages
-                            .map((lang) => DropdownMenuItem<String>(
-                                  value: lang,
-                                  child: Text(lang.toUpperCase()),
-                                ))
-                            .toList(),
+                        items: sortedLanguages.map((lang) {
+                          return DropdownMenuItem<String>(
+                            value: lang.key,
+                            child: Text(lang.value),
+                          );
+                        }).toList(),
                         onChanged: (value) {
                           setState(() {
                             _selectedTargetLanguage = value!;
