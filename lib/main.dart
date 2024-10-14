@@ -59,8 +59,6 @@ final Map<String, String> _languagesMap = {
 };
 
 
-
-
   final ScrollController _scrollController = ScrollController();
   final ScrollController _logScrollController = ScrollController(); // Controller for log auto-scrolling
 
