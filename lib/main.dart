@@ -27,8 +27,8 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
   bool _isListening = false;
   String _translatedText = "";
   static const _textStyle = TextStyle(fontSize: 30);
-  String _selectedInputLanguage = 'de';
-  String _selectedTargetLanguage = 'de';
+  String _selectedInputLanguage = 'en';
+  String _selectedTargetLanguage = 'ja';
 
 
 // Map for languages with abbreviations as keys and full names in English as values
