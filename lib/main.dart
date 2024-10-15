@@ -28,7 +28,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
   String _translatedText = "";
   static const _textStyle = TextStyle(fontSize: 30);
   String _selectedInputLanguage = 'de';
-  String _selectedTargetLanguage = 'ja';
+  String _selectedTargetLanguage = 'de';
 
 
 // Map for languages with abbreviations as keys and full names in English as values
@@ -167,7 +167,7 @@ final Map<String, String> _languagesMap = {
                 : 'Partielles Ergebnis: ${result.recognizedWords}');
 
             // Alle Ergebnisse sofort übersetzen und anzeigen
-            _translateAndSendPartialText(result.recognizedWords);
+            _translateAndSendPartialText(result.recognizedWords, result.finalResult);
           },
           localeId: _selectedInputLanguage,
           listenFor: Duration(minutes: 5),  // Längeres Timeout für kontinuierliches Zuhören
@@ -221,41 +221,59 @@ final Map<String, String> _languagesMap = {
 
 
 
-void _translateAndSendPartialText(String partialText) async {
-  // Sende nichts, wenn der Text leer ist
+String? _pendingFinalText; // Variable zum Speichern des finalen Textes
+
+Future<void> _translateAndSendPartialText(String partialText, bool isFinal) async {
   if (partialText.isEmpty) {
     return;
   }
 
-  // Verarbeite den Text auch dann, wenn er das finale Ergebnis ist
-  if (!_isSending && (partialText != _lastSentText || _speechToText.isNotListening)) {
-    _isSending = true;
-    try {
-      // Asynchron übersetzen und sofort nach Abschluss senden
-      String translatedChunk = await translateText(partialText, _selectedInputLanguage, _selectedTargetLanguage);
+  // Wenn wir gerade senden
+  if (_isSending) {
+    if (isFinal) {
+      // Speichere das finale Ergebnis zur späteren Verarbeitung
+      _pendingFinalText = partialText;
+    }
+    return;
+  }
 
-      if (translatedChunk.isNotEmpty) {
-        // Übersetzung sofort ans Frame senden
-        await _sendTextToFrame(translatedChunk);
+  // Wenn sich der Text nicht geändert hat und es nicht das finale Ergebnis ist, überspringen
+  if (partialText == _lastSentText && !isFinal) {
+    return;
+  }
 
-        // UI aktualisieren
-        setState(() {
-          _translatedText = translatedChunk;
-        });
+  _isSending = true;
+  try {
+    String translatedChunk = await translateText(partialText, _selectedInputLanguage, _selectedTargetLanguage);
 
-        // Letzten gesendeten Text speichern, um Wiederholungen zu vermeiden, nur wenn es sich nicht um das finale Ergebnis handelt
-        if (!_speechToText.isNotListening) {
-          _lastSentText = partialText;
-        }
-      }
+    if (translatedChunk.isNotEmpty) {
+      await _sendTextToFrame(translatedChunk);
 
-    } catch (e) {
-      _log.severe('Fehler beim Senden des Textes an das Frame: $e');
-    } finally {
-      _isSending = false;
+      setState(() {
+        _translatedText = translatedChunk;
+      });
+
+      // Letzten gesendeten Text speichern, um Wiederholungen zu vermeiden
+      _lastSentText = partialText;
+    }
+
+  } catch (e) {
+    _log.severe('Fehler beim Senden des Textes an das Frame: $e');
+  } finally {
+    _isSending = false;
+    // Prüfe, ob ein finales Ergebnis zur Verarbeitung ansteht
+    if (_pendingFinalText != null && _pendingFinalText != _lastSentText) {
+      String finalText = _pendingFinalText!;
+      _pendingFinalText = null;
+      // Verarbeite das finale Ergebnis
+      await _translateAndSendPartialText(finalText, true);
     }
   }
 }
+
+
+
+
 
 Future<void> _sendTextToFrame(String text) async {
   if (text.isNotEmpty) {
@@ -301,7 +319,7 @@ Future<void> _sendTextToFrame(String text) async {
   Future<String> translateText(
       String text, String sourceLang, String targetLang) async {
     try {
-      var url = Uri.parse('https://LIBRETRANSLATE-URL/translate');
+      var url = Uri.parse('https://URL-TO-LIBRETRANSLATE/translate');
       var response = await http.post(url,
           headers: {
             'Content-Type': 'application/json',
@@ -311,7 +329,7 @@ Future<void> _sendTextToFrame(String text) async {
             'source': sourceLang,
             'target': targetLang,
             'format': 'text',
-            'api_key': 'LIBRETRANSLATE-API-KEX', // Falls ein API-Schlüssel benötigt wird
+            'api_key': 'API-KEY-LIBRETRANSLATE', // Falls ein API-Schlüssel benötigt wird
 
           }));
 
